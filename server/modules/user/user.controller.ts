@@ -72,6 +72,15 @@ export async function login(req: FastifyRequest<{Body: loginBody}>, res: Fastify
 
 }
 
+export async function logout(req: FastifyRequest, res: FastifyReply)
+{
+	res
+	.clearCookie('accessToken', { path: '/' })
+	.clearCookie('refreshToken', { path: '/' })
+	.code(200)
+	.send({ message: 'Logged out successfully' });
+}
+
 async function verifyJWT(req: FastifyRequest, reply: FastifyReply) {
 	const token = req.cookies.accessToken;
 	if (!token) return reply.code(401).send({ error: 'Unauthorized' });

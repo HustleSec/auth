@@ -1,5 +1,5 @@
 import fastify, { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { login, register } from "./user.controller";
+import { login, logout, register } from "./user.controller";
 
 
 export async function userRoutes(app: FastifyInstance)
@@ -9,5 +9,5 @@ export async function userRoutes(app: FastifyInstance)
 	})
 	app.post('/register', {schema: userSchema}, register)
 	app.post('/login', {schema: userSchema}, login)
-	app.delete('/logout', ()=>{})
+	app.post('/logout', logout)
 }
