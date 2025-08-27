@@ -85,7 +85,8 @@ export async function logout(req: FastifyRequest, res: FastifyReply)
 	.send({ message: 'Logged out successfully' });
 }
 
-async function verifyJWT(req: FastifyRequest, reply: FastifyReply) {
+async function verifyJWT(req: FastifyRequest, reply: FastifyReply) 
+{
 	const token = req.cookies.accessToken;
 	if (!token) return reply.code(401).send({ error: 'Unauthorized' });
   
@@ -95,4 +96,12 @@ async function verifyJWT(req: FastifyRequest, reply: FastifyReply) {
 	} catch {
 	  return reply.code(401).send({ error: 'Invalid token' });
 	}
+}
+
+async function refreshToken(req: FastifyRequest, reply: FastifyReply)
+{
+	const token = req.cookies.refreshToken
+	if (!token)
+		reply.status(400).send({error: "no refresh token"})
+		
 }
