@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken"
 
 const JWT_SECRET = 'secret-key';
-const ACCESS_TOKEN_EXPIRES = '15m';
+const ACCESS_TOKEN_EXPIRES = '1m';
 const REFRESH_TOKEN_EXPIRES = '7d';
 
 export function createAccessToken(user:any) {

@@ -1,4 +1,4 @@
-import { login, logout, register } from "./user_controller";
+import { login, logout, register } from "./user_controller.js";
 import { userSchema } from "./user_schema";
 export async function userRoutes(app) {
     app.get('/', (req, res) => {

@@ -20,8 +20,16 @@ export async function register(req, res) {
         const accessToken = createAccessToken(user);
         const refreshToken = createRefreshToken(user);
         return res
-            .setCookie('accessToken', accessToken, { httpOnly: true })
-            .setCookie('refreshToken', refreshToken, { httpOnly: true })
+            .setCookie("accessToken", accessToken, {
+            httpOnly: true,
+            path: "/",
+            sameSite: "lax"
+        })
+            .setCookie("refreshToken", refreshToken, {
+            httpOnly: true,
+            path: "/",
+            sameSite: "lax"
+        })
             .send({ message: 'register successful' });
     }
     catch (err) {
@@ -40,20 +48,20 @@ export async function login(req, res) {
     const user = await db.get('SELECT * FROM users WHERE email = ?', email);
     if (!user)
         res.status(400).send("invalid credentials");
-    const valid = bcrypt.compare(password, user.password);
+    const valid = await bcrypt.compare(password, user.password);
     if (!valid)
         res.status(400).send("invalid credentials");
     const accessToken = createAccessToken(user);
     const refreshToken = createRefreshToken(user);
     res
-        .setCookie('accessToken', accessToken, { httpOnly: true })
-        .setCookie('refreshToken', refreshToken, { httpOnly: true })
+        .setCookie("accessToken", accessToken, { httpOnly: true, path: "/", sameSite: "lax" })
+        .setCookie("refreshToken", refreshToken, { httpOnly: true, path: "/", sameSite: "lax" })
         .send({ message: 'Login successful' });
 }
 export async function logout(req, res) {
     res
-        .clearCookie('accessToken', { path: '/' })
-        .clearCookie('refreshToken', { path: '/' })
+        .clearCookie("accessToken", { httpOnly: true, path: "/", sameSite: "lax" })
+        .clearCookie("refreshToken", { httpOnly: true, path: "/", sameSite: "lax" })
         .code(200)
         .send({ message: 'Logged out successfully' });
 }
@@ -67,5 +75,37 @@ async function verifyJWT(req, reply) {
     }
     catch {
         return reply.code(401).send({ error: 'Invalid token' });
+    }
+}
+export async function refreshToken(req, reply) {
+    const token = req.cookies.refreshToken;
+    if (!token)
+        reply.status(400).send({ error: "no refresh token" });
+    try {
+        const payload = jwt.verify(token, JWT_SECRET);
+        const newAccessToken = createAccessToken(payload);
+        const newRefreshToken = createRefreshToken(payload);
+        reply
+            .clearCookie("accessToken", { httpOnly: true, path: "/", sameSite: "lax" })
+            .clearCookie("refreshToken", { httpOnly: true, path: "/", sameSite: "lax" })
+            .setCookie("accessToken", newAccessToken, { httpOnly: true, path: "/", sameSite: "lax" })
+            .setCookie("refreshToken", newRefreshToken, { httpOnly: true, path: "/", sameSite: "lax" })
+            .send({ message: 'Token refreshed' });
+    }
+    catch (error) {
+        return reply.status(400).send({ "invalid token : ": error.message });
+    }
+}
+export async function authMiddleware(req, reply) {
+    const token = req.cookies.accessToken;
+    if (!token) {
+        return reply.code(401).send({ error: "Unauthorized" });
+    }
+    try {
+        const payload = jwt.verify(token, JWT_SECRET);
+        req.user = payload;
+    }
+    catch {
+        return reply.code(401).send({ error: "Invalid token" });
     }
 }

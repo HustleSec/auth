@@ -39,9 +39,17 @@ export async function register(req: FastifyRequest<{Body: loginBody}>, res: Fast
 		const accessToken = createAccessToken(user);
 		const refreshToken = createRefreshToken(user);
 	    return res
-		   		.setCookie('accessToken', accessToken, { httpOnly: true })
-		   		.setCookie('refreshToken', refreshToken, { httpOnly: true })
-		   		.send({ message: 'register successful' });
+		.setCookie("accessToken", accessToken, {
+			httpOnly: true,
+			path: "/",
+			sameSite: "lax"
+		  })
+		.setCookie("refreshToken", refreshToken, {
+			httpOnly: true,
+			path: "/",
+			sameSite: "lax"
+		  })
+		.send({ message: 'register successful' });
 	} catch(err: any){
 		if (err.code === 'SQLITE_CONSTRAINT') {
 			return res.code(400).send({ error: 'user already exists' });
@@ -61,7 +69,7 @@ export async function login(req: FastifyRequest<{Body: loginBody}>, res: Fastify
 	const user = await db.get('SELECT * FROM users WHERE email = ?', email);
 	if (!user)
 		res.status(400).send("invalid credentials")
-	const valid = bcrypt.compare(password, user.password);
+	const valid = await bcrypt.compare(password, user.password);
 	if (!valid)
 		res.status(400).send("invalid credentials")
 
@@ -70,17 +78,16 @@ export async function login(req: FastifyRequest<{Body: loginBody}>, res: Fastify
  	const refreshToken = createRefreshToken(user);
 
 	res
-		.setCookie('accessToken', accessToken, { httpOnly: true })
-		.setCookie('refreshToken', refreshToken, { httpOnly: true })
-		.send({ message: 'Login successful' });
-
+	.setCookie("accessToken", accessToken, {httpOnly: true, path: "/", sameSite: "lax"})
+	.setCookie("refreshToken", refreshToken, {httpOnly: true, path: "/", sameSite: "lax"})
+	.send({ message: 'Login successful' });
 }
 
 export async function logout(req: FastifyRequest, res: FastifyReply)
 {
 	res
-	.clearCookie('accessToken', { path: '/' })
-	.clearCookie('refreshToken', { path: '/' })
+	.clearCookie("accessToken", { httpOnly: true, path: "/", sameSite: "lax" })
+	.clearCookie("refreshToken", { httpOnly: true, path: "/", sameSite: "lax" })
 	.code(200)
 	.send({ message: 'Logged out successfully' });
 }
@@ -98,10 +105,37 @@ async function verifyJWT(req: FastifyRequest, reply: FastifyReply)
 	}
 }
 
-async function refreshToken(req: FastifyRequest, reply: FastifyReply)
+export async function refreshToken(req: FastifyRequest, reply: FastifyReply)
 {
-	const token = req.cookies.refreshToken
+	const token:any = req.cookies.refreshToken
 	if (!token)
 		reply.status(400).send({error: "no refresh token"})
+	try {
+		const payload = jwt.verify(token, JWT_SECRET)
 		
+		const newAccessToken  = createAccessToken(payload)
+		const newRefreshToken = createRefreshToken(payload)
+		reply
+		.clearCookie("accessToken", { httpOnly: true, path: "/", sameSite: "lax" })
+		.clearCookie("refreshToken", { httpOnly: true, path: "/", sameSite: "lax" })
+		.setCookie("accessToken", newAccessToken, {httpOnly: true, path: "/", sameSite: "lax"})
+		.setCookie("refreshToken", newRefreshToken, {httpOnly: true, path: "/", sameSite: "lax"})
+		.send({ message: 'Token refreshed' });
+	} catch (error:any) {
+		return reply.status(400).send({"invalid token : ": error.message})
+	}
+}
+
+export async function authMiddleware(req: FastifyRequest, reply: FastifyReply) {
+	const token = req.cookies.accessToken
+	if (!token) {
+	  return reply.code(401).send({ error: "Unauthorized" });
+	}
+
+	try {
+	  const payload = jwt.verify(token, JWT_SECRET);
+	  (req as any).user = payload;
+	} catch {
+	  return reply.code(401).send({ error: "Invalid token" });
+	}
 }
