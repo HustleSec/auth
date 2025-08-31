@@ -22,7 +22,7 @@ export async function register(req: FastifyRequest<{Body: loginBody}>, res: Fast
 	const db = await init()
 	const {password, name, email} = req.body
 	if (!password || !name || !email)
-		res.status(400).send("password email name are all required")
+		return res.status(400).send("password email name are all required")
 	const hashPassword = await bcrypt.hash(password, 10)
 	
 	try{
@@ -36,20 +36,7 @@ export async function register(req: FastifyRequest<{Body: loginBody}>, res: Fast
 					hashPassword]
 				);
 		user = await db.get('SELECT * FROM users WHERE email = ?', email);
-		const accessToken = createAccessToken(user);
-		const refreshToken = createRefreshToken(user);
-	    return res
-		.setCookie("accessToken", accessToken, {
-			httpOnly: true,
-			path: "/",
-			sameSite: "lax"
-		  })
-		.setCookie("refreshToken", refreshToken, {
-			httpOnly: true,
-			path: "/",
-			sameSite: "lax"
-		  })
-		.send({ message: 'register successful' });
+		send2fcode(req, res)
 	} catch(err: any){
 		if (err.code === 'SQLITE_CONSTRAINT') {
 			return res.code(400).send({ error: 'user already exists' });
@@ -57,6 +44,11 @@ export async function register(req: FastifyRequest<{Body: loginBody}>, res: Fast
 		  return res.code(500).send({ error: 'Internal server error', err });
 	}
 
+}
+
+export async function verify_code(req: FastifyRequest<{Body: code}>, res: FastifyReply)
+{
+	verify2fa(req, res)
 }
 
 export async function login(req: FastifyRequest<{Body: loginBody}>, res: FastifyReply)
